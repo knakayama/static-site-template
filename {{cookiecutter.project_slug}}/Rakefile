@@ -1,0 +1,133 @@
+require 'rake'
+require 'rspec/core/rake_task'
+require 'highline/import'
+require 'yaml'
+
+PACKER_DIR = "packer"
+PACKER_TEMPLATE = "wp.json"
+TERRAFORM_BASE_DIR = "terraform"
+TERRAFORM_GLOBAL_DIR = "#{TERRAFORM_BASE_DIR}/global"
+TERRAFORM_PROD_DIR = "#{TERRAFORM_BASE_DIR}/prod"
+KEYPAIR_PATH = "{{ cookiecutter.keypair_path }}"
+AWS_PROFILE = "{{ cookiecutter.profile }}"
+
+def get(terraform_dir)
+  sh "cd #{terraform_dir} && terraform get"
+end
+
+def destroy(terraform_dir, remote_state_bucket, wp_ami_id=nil, site_public_key=nil)
+  if wp_ami_id.nil?
+    sh "cd #{terraform_dir} && terraform destroy -var remote_state_bucket=#{remote_state_bucket}"
+  else
+    sh "cd #{terraform_dir} && terraform destroy -var remote_state_bucket=#{remote_state_bucket} -var site_public_key=\"$(ssh-keygen -y -f #{site_public_key})\" -var wp_ami_id=#{wp_ami_id}"
+  end
+end
+
+def output(terraform_dir)
+  sh "cd #{terraform_dir} && terraform output"
+end
+
+namespace :packer do
+  desc "Build AMI"
+  task :build do
+    sh "cd #{PACKER_DIR} && AWS_PROFILE=#{AWS_PROFILE} packer build #{PACKER_TEMPLATE}"
+  end
+
+  desc "Validate Packer template"
+  task :validate do
+    sh "cd #{PACKER_DIR} && AWS_PROFILE=#{AWS_PROFILE} packer validate #{PACKER_TEMPLATE}"
+  end
+end
+
+namespace :terraform do
+  properties = YAML.load_file(File.join(File.dirname(File.expand_path(__FILE__)), 'properties.yml'))
+
+  namespace :global do
+    raise 'properties[:date] is empty.' if properties[:date].empty?
+    remote_state_bucket = "static-site-global-tfstate-#{properties[:date]}"
+
+    desc "Plan Terraform to create IAM Group and Users"
+    task :plan do
+      get(TERRAFORM_GLOBAL_DIR)
+      sh "cd #{TERRAFORM_GLOBAL_DIR} && AWS_PROFILE=#{AWS_PROFILE} terraform plan -var remote_state_bucket=#{remote_state_bucket}"
+    end
+
+    desc "Apply Terraform to create IAM Group and Users"
+    task :apply do
+      get(TERRAFORM_GLOBAL_DIR)
+      sh "cd #{TERRAFORM_GLOBAL_DIR} && AWS_PROFILE=#{AWS_PROFILE} terraform apply -var remote_state_bucket=#{remote_state_bucket}"
+    end
+
+    desc "Destroy IAM Resources"
+    task :destroy do
+      destroy(TERRAFORM_GLOBAL_DIR, remote_state_bucket)
+    end
+
+    desc "Outpute IAM Resources"
+    task :output do
+      output(TERRAFORM_GLOBAL_DIR)
+    end
+
+    namespace :remote do
+      desc "Enable S3 backend to store IAM tfstate"
+      task :enable do
+        sh "cd #{TERRAFORM_GLOBAL_DIR} && AWS_PROFILE=#{AWS_PROFILE} terraform remote config -backend=s3 -backend-config='bucket=#{remote_state_bucket}' -backend-config='key=terraform.tfstate' -backend-config='region={{ cookiecutter.region }}'"
+      end
+
+      desc "Disable S3 backend to store IAM tfstate locally"
+      task :disable do
+        sh "cd #{TERRAFORM_GLOBAL_DIR} && AWS_PROFILE=#{AWS_PROFILE} terraform remote config -disable"
+      end
+    end
+  end
+
+  namespace :prod do
+    raise 'properties[:date] is empty.' if properties[:date].empty?
+    remote_state_bucket = "static-site-prod-tfstate-#{properties[:date]}"
+
+    site_public_key = File.expand_path(KEYPAIR_PATH)
+    raise 'site_public_key does not found.' unless File.file?(site_public_key)
+
+    wp_ami_id = properties[:wp_ami_id]
+
+    desc "Plan Terraform to create AWS Resources on prod"
+    task :plan do
+      wp_ami_id = ask("Enter WP AMI Id: ") if wp_ami_id.empty?
+
+      get(TERRAFORM_PROD_DIR)
+      sh "cd #{TERRAFORM_PROD_DIR} && AWS_PROFILE=#{AWS_PROFILE} terraform plan -var site_public_key=\"$(ssh-keygen -y -f #{site_public_key})\" -var wp_ami_id=#{wp_ami_id} -var remote_state_bucket=#{remote_state_bucket}"
+    end
+
+    desc "Apply Terraform to create AWS Resources on prod"
+    task :apply do
+      wp_ami_id = ask("Enter WP AMI Id: ") if wp_ami_id.empty?
+
+      get(TERRAFORM_PROD_DIR)
+      sh "cd #{TERRAFORM_PROD_DIR} && AWS_PROFILE=#{AWS_PROFILE} terraform apply -var site_public_key=\"$(ssh-keygen -y -f #{site_public_key})\" -var wp_ami_id=#{wp_ami_id} -var remote_state_bucket=#{remote_state_bucket}"
+    end
+
+    desc "Destroy AWS Resources on prod"
+    task :destroy do
+      wp_ami_id = ask("Enter WP AMI Id: ") if wp_ami_id.empty?
+
+      destroy(TERRAFORM_PROD_DIR, remote_state_bucket, wp_ami_id, site_public_key)
+    end
+
+    desc "Outpute AWS Resources on prod"
+    task :output do
+      output(TERRAFORM_PROD_DIR)
+    end
+
+    namespace :remote do
+      desc "Enable S3 backend to store AWS tfstate"
+      task :enable do
+        sh "cd #{TERRAFORM_PROD_DIR} && AWS_PROFILE=#{AWS_PROFILE} terraform remote config -backend=s3 -backend-config='bucket=#{remote_state_bucket}' -backend-config='key=terraform.tfstate' -backend-config='region={{ cookiecutter.region }}'"
+      end
+
+      desc "Disable S3 backend to store AWS tfstate locally"
+      task :disable do
+        sh "cd #{TERRAFORM_PROD_DIR} && AWS_PROFILE=#{AWS_PROFILE} terraform remote config -disable"
+      end
+    end
+  end
+end

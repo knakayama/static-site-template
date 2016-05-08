@@ -1,0 +1,30 @@
+---
+- name: Install nginx
+  yum:
+    name: nginx
+    state: present
+
+- name: Copy nginx configuration
+  copy:
+    src: etc/nginx/conf.d/wordpress.conf
+    dest: /etc/nginx/conf.d/wordpress.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: Restart nginx
+
+- name: Setup nginx configuration
+  lineinfile:
+    dest: /etc/nginx/nginx.conf
+    state: present
+    regexp: '(^\s*)server_name(\s*)localhost;'
+    line: "\\1server_name\\2{{ wp_sub_domain }}.{{ site_domain }};"
+    backrefs: yes
+  notify:
+    - Restart nginx
+
+- name: Be sure nginx enabled and started
+  service:
+    name: nginx
+    enabled: yes
+    state: started

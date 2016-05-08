@@ -1,0 +1,66 @@
+{
+  "variables": {
+    "name":            "wp-ami",
+    "ssh_username":    "ec2-user",
+    "scripts_dir":     "scripts",
+    "dns_listen_addr": "127.0.0.1"
+  },
+  "builders": [
+    {
+      "name":            "{{ "{{user `name`}}" }}",
+      "type":            "amazon-ebs",
+      "region":          "{{ cookiecutter.region }}",
+      "source_ami":      "{{ cookiecutter.base_ami_id }}",
+      "instance_type":   "t2.micro",
+      "ssh_username":    "{{ "{{user `ssh_username`}}" }}",
+      "ami_name":        "{{ "{{user `name`}} {{timestamp}}" }}",
+      "ami_description": "{{ "{{user `name`}} AMI" }}",
+      "run_tags":        { "ami-create": "{{ "{{user `name`}}" }}" },
+      "tags":            { "ami": "{{ "{{user `name`}}" }}" },
+      "ssh_private_ip":  false,
+      "ssh_pty":         true,
+      "associate_public_ip_address": true
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "execute_command": "echo {{ '{{user `ssh_username`}}' }} | {{ '{{ .Vars }}' }} sudo -E -S sh {{ '{{ .Path }}' }}",
+      "inline": [
+        "mkdir -p /ops/{{ '{{user `scripts_dir`}}' }}",
+        "chmod a+w /ops/{{ '{{user `scripts_dir`}}' }}"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "{{ '{{user `scripts_dir`}}' }}/.",
+      "destination": "/ops/{{ '{{user `scripts_dir`}}' }}"
+    },
+    {
+      "type": "shell",
+      "execute_command": "echo {{ '{{user `ssh_username`}}' }} | {{ '{{ .Vars }}' }} sudo -E -S sh {{ '{{ .Path }}' }}",
+      "inline": [
+        "bash /ops/{{ '{{user `scripts_dir`}}' }}/bootstrap.sh",
+        "bash /ops/{{ '{{user `scripts_dir`}}' }}/ansible.sh"
+      ]
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "{{ '{{user `scripts_dir`}}' }}/playbook/site.yml",
+      "inventory_file": "{{ '{{user `scripts_dir`}}' }}/playbook/hosts",
+      "staging_directory": "/ops/{{ '{{user `scripts_dir`}}' }}/playbook",
+      "extra_arguments": [
+        "-vv",
+        "--extra-vars site_domain={{ cookiecutter.site_domain.rstrip('.') }}",
+        "--extra-vars wp_sub_domain={{ cookiecutter.wp_sub_domain }}",
+        "--extra-vars wp_db_name={{ cookiecutter.wp_db_name }}",
+        "--extra-vars wp_db_user={{ cookiecutter.wp_db_user }}",
+        "--extra-vars wp_db_pass={{ cookiecutter.wp_db_pass }}",
+        "--extra-vars wp_site_title={{ cookiecutter.wp_site_title }}",
+        "--extra-vars wp_site_admin_user={{ cookiecutter.wp_site_admin_user }}",
+        "--extra-vars wp_site_admin_password={{ cookiecutter.wp_site_admin_password }}",
+        "--extra-vars wp_site_admin_email={{ cookiecutter.wp_site_admin_email }}"
+      ]
+    }
+  ]
+}

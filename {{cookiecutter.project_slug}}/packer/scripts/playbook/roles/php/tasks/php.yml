@@ -1,0 +1,25 @@
+---
+- name: Install php
+  yum:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - "{{ php_packages }}"
+
+- name: Adjust php.ini
+  lineinfile:
+    dest: "{{ item.dest }}"
+    state: present
+    create: yes
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  notify:
+    - Restart php-fpm
+  with_items:
+    - "{{ php_fpm_files }}"
+
+- name: Be sure php-fpm enabled and started
+  service:
+    name: php-fpm
+    enabled: yes
+    state: started

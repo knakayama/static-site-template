@@ -1,0 +1,14 @@
+---
+php_fpm_ver: 56
+php_fpm_dotted_ver: 5.6
+php_packages:
+  - "php{{ php_fpm_ver }}-fpm"
+  - "php{{ php_fpm_ver }}-mysqlnd"
+  - "php{{ php_fpm_ver }}-mbstring"
+
+php_fpm_files:
+  - { dest: /etc/php.ini, regexp: '^;?date.timezone =', line: 'date.timezone = "Asia/Tokyo"' }
+  - { dest: /etc/php.ini, regexp: '(;\s)?max_input_vars =', line: "max_input_vars = 2000" }
+  - { dest: /etc/php.ini, regexp: '^;mbstring.language = Japanese', line: "mbstring.language = Japanese" }
+  - { dest: "/etc/php-fpm-{{ php_fpm_dotted_ver }}.d/www.conf", regexp: '^user = apache', line: 'user = nginx' }
+  - { dest: "/etc/php-fpm-{{ php_fpm_dotted_ver }}.d/www.conf", regexp: '^group = apache', line: 'group = nginx' }

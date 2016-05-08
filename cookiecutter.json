@@ -1,0 +1,29 @@
+{
+  "project_slug": "static-site-template",
+  "region": "ap-northeast-1",
+  "profile": "default",
+  "keypair_path": "~/.ssh/static_site_key_pair",
+  "base_ami_id": "ami-f80e0596",
+  "site_domain": "example.com",
+  "wp_sub_domain": "wp",
+  "static_site_sub_domain": "static",
+  "wp_domain_ttl": "60",
+  "static_site_domain_ttl": "60",
+  "wp_db_name": "wordpress",
+  "wp_db_user": "wordpress",
+  "wp_db_pass": "pAssw0rd",
+  "wp_site_title": "static-site",
+  "wp_site_admin_user": "wp-site-admin",
+  "wp_site_admin_password": "wp-site-admin-pass",
+  "wp_site_admin_email": "wp-site-email@example.com",
+  "wp_instance_type": "t2.micro",
+  "wp_volume_size": "100",
+  "wp_volume_type": "gp2",
+  "cloudfront_price_class": "PriceClass_200",
+  "ssh_cidr_blocks": "0.0.0.0/0",
+  "stg_source_ip": "0.0.0.0/0",
+  "_copy_without_render": [
+    "*scripts*",
+    "*vendor"
+  ]
+}

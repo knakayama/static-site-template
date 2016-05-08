@@ -1,0 +1,7 @@
+---
+mysql_packages:
+  - mysql
+  - mysql-server
+  - MySQL-python27
+mysql_user:
+  - { name: wordpress, password: "{{ wp_db_pass }}" }

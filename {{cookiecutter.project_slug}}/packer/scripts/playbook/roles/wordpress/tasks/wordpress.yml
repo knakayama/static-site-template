@@ -1,0 +1,53 @@
+---
+- name: Install git
+  yum:
+    name: git
+    state: present
+
+- name: Get latest wordpress and unarchive
+  unarchive:
+    src: "{{ wordpress_url }}"
+    dest: /usr/share/nginx/html
+    copy: no
+    creates: "{{ wordpress_dir }}/wp-config.php"
+
+- name: Install wp-cli
+  get_url:
+    url: "{{ wp_cli_url }}"
+    dest: /usr/local/bin/wp
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Setup wordpress via wp-cli
+  shell: |
+    /usr/local/bin/wp core config \
+      --dbname={{ wp_db_name }} \
+      --dbuser={{ wp_db_user }} \
+      --dbpass={{ wp_db_pass }} \
+      --dbhost=localhost \
+      --allow-root \
+    && /usr/local/bin/wp core install \
+      --url=http://{{ wp_sub_domain }}.{{ site_domain }}/wordpress \
+      --title={{ wp_site_title }} \
+      --admin_user={{ wp_site_admin_user }} \
+      --admin_password={{ wp_site_admin_password }} \
+      --admin_email={{ wp_site_admin_email }} \
+      --allow-root \
+    && /usr/local/bin/wp plugin install staticpress \
+      --allow-root
+  args:
+    chdir: "{{ wordpress_dir }}"
+    creates: wp-config.php
+
+- name: Install StaticPress S3 plugin
+  git:
+    repo: "{{ staticpress_s3_repo }}"
+    dest: "{{ wordpress_dir }}/wp-content/plugins/staticpress-s3"
+
+- name: Change all file owners to nginx
+  file:
+    path: "{{ wordpress_dir }}"
+    owner: nginx
+    group: nginx
+    recurse: yes

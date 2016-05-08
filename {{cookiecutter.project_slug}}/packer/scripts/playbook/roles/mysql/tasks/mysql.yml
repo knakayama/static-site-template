@@ -1,0 +1,29 @@
+---
+- name: Install {{ mysql_packages }}
+  yum:
+    name: "{{ mysql_packages }}"
+    state: present
+  with_items:
+    - "{{ mysql_packages }}"
+
+- name: Be sure mysqld enabled and started
+  service:
+    name: mysqld
+    enabled: yes
+    state: started
+
+- name: Create db for wordpress
+  mysql_db:
+    name: wordpress
+    login_user: root
+    state: present
+
+- name: Create db user for wordpress
+  mysql_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password }}"
+    priv: wordpress.*:ALL
+    login_user: root
+    state: present
+  with_items:
+    - "{{ mysql_user }}"

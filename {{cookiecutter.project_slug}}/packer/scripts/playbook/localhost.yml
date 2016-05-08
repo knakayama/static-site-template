@@ -1,0 +1,9 @@
+---
+- name: Provision Wordpress
+  hosts: localhost
+  roles:
+    - { role: php,       tags: [ php ] }
+    - { role: nginx,     tags: [ nginx ] }
+    - { role: mysql,     tags: [ mysql ] }
+    - { role: wordpress, tags: [ wordpress ] }
+

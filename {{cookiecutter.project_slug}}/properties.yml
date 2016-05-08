@@ -1,0 +1,2 @@
+:wp_ami_id: ""
+:date: "{% now 'local' %}"

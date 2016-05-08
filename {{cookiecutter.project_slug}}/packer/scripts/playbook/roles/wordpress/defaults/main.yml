@@ -1,0 +1,5 @@
+---
+wordpress_url: "http://ja.wordpress.org/latest-ja.tar.gz"
+wp_cli_url: "https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar"
+staticpress_s3_repo: "https://github.com/megumiteam/staticpress-s3.git"
+wordpress_dir: /usr/share/nginx/html/wordpress
